@@ -26,13 +26,7 @@
 // Recommended tab width when reading this file: 4. (mainly for multi-line spanning concatenated strings)
 
 class Tabs {
-	/**
-	 * Initiate the tags and parser function
-	 * @param Parser &$parser
-	 * @return bool true
-	 */
-	public static function init( &$parser ) {
-		$parser->tabsData = [
+	private static $tabsData = [
 			'tabsCount' => 0, // Counts the index of the <tabs> tag on the page. Increments by 1 before parsing the tag.
 			'tabCount' => 0, // Same, but for <tab> instead.
 			'addedStatics' => false, // checks if static styles have been added, so that it isn't done multiple times.
@@ -42,6 +36,12 @@ class Tabs {
 			'labels' => [], // Lists the labels that need to be made within <tabs>. Example: array(1 => 'Tab 1', 2 => 'some tab label');
 			//'dropdown' => false, // Used in combination with 'nested'; keeps track of whether the <tab> is nested inside a dropdown.
 		];
+	/**
+	 * Initiate the tags and parser function
+	 * @param Parser &$parser
+	 * @return bool true
+	 */
+	public static function init( &$parser ) {
 		$parser->setHook( 'tab', [ new self(), 'renderTab' ] );
 		$parser->setHook( 'tabs', [ new self(), 'renderTabs' ] );
 		$parser->setFunctionHook( 'tab', [ new self(), 'renderPf' ] );
@@ -58,11 +58,11 @@ class Tabs {
 	 * @return string
 	 */
 	public function renderTab( $input, array $attr, $parser, $frame ) {
-		$form = $parser->tabsData['tabCount'] === 0 ? $this->insertCSSJS( $parser ) : ''; // init styles, set the return <form> tag as $form.
-		++$parser->tabsData['tabCount'];
-		$names = &$parser->tabsData['tabNames'];
+		$form = Tabs::$tabsData['tabCount'] === 0 ? $this->insertCSSJS( $parser ) : ''; // init styles, set the return <form> tag as $form.
+		++Tabs::$tabsData['tabCount'];
+		$names = &Tabs::$tabsData['tabNames'];
 		$nestAttr = isset( $attr['nested'] ); // adding this attribute will restrict functionality, but allow nested tabs inside toggleboxes
-		$nested = $parser->tabsData['nested'];
+		$nested = Tabs::$tabsData['nested'];
 		if ( isset( $attr['name'] ) ) {
 			$attr['name'] = trim( htmlspecialchars( $attr['name'] ) ); // making the name attr safe to use
 		}
@@ -118,15 +118,15 @@ class Tabs {
 			];
 			if ( $index !== 0 ) {
 				// Store the index and the name so this can be used within the <tabs> hook to create labels
-				$parser->tabsData['labels'][intval( $index )] = $name;
+				Tabs::$tabsData['labels'][intval( $index )] = $name;
 			}
 		}
 		if ( $input === null ) {
 			return ''; // return empty string if the tag is self-closing. This can be used to pre-define tabs for referring to via the index later.
 		}
-		$parser->tabsData['nested'] = false; // temporary
+		Tabs::$tabsData['nested'] = false; // temporary
 		$newstr = $parser->recursiveTagParse( $input, $frame );
-		$parser->tabsData['nested'] = $nested; // revert
+		Tabs::$tabsData['nested'] = $nested; // revert
 		return $form . $container[0] . '<' . $container[2] . $container[3] . ">$newstr</" . $container[2] . '>' . $container[1];
 	}
 
@@ -147,7 +147,7 @@ class Tabs {
 			'closename' => isset( $attr['closename'] ),
 		];
 		$checked = isset( $attr['collapsed'] ) ? '' : ' checked="checked"';
-		$id = 'Tabs_' . $parser->tabsData['tabCount'];
+		$id = 'Tabs_' . Tabs::$tabsData['tabCount'];
 		$dropdown = isset( $attr['dropdown'] );
 		if ( $dropdown ) {
 			// default width. Will be overridden by styles added by the user, if set.
@@ -227,11 +227,11 @@ class Tabs {
 		if ( !isset( $input ) ) {
 			return ''; // Exit if the tag is self-closing. <tabs> is a container element, so should always have something in it.
 		}
-		$form = $parser->tabsData['tabCount'] === 0 ? $this->insertCSSJS( $parser ) : ''; // init styles, set the return <form> tag as $form.
-		if ( $parser->tabsData['tabsCount'] === 0 ) {
+		$form = Tabs::$tabsData['tabCount'] === 0 ? $this->insertCSSJS( $parser ) : ''; // init styles, set the return <form> tag as $form.
+		if ( Tabs::$tabsData['tabsCount'] === 0 ) {
 			$this->insertCSSJS( $parser ); // init styles
 		}
-		$count = ++$parser->tabsData['tabsCount'];
+		$count = ++Tabs::$tabsData['tabsCount'];
 		$class = 'tabs tabs-tabbox';
 		if ( isset( $attr['plain'] ) ) {
 			$class .= ' tabs-plain';
@@ -244,15 +244,15 @@ class Tabs {
 		}
 
 		// CLEARING:
-		$tabnames = $parser->tabsData['tabNames']; // Copy this array's value, to reset it to this value after parsing the inner <tab>s.
-		$parser->tabsData['tabNames'] = []; // temporarily clear this array, so that only the <tab>s within this <tabs> tag are tracked.
-		$parser->tabsData['labels'] = []; // Reset after previous usage
-		$parser->tabsData['nested'] = true;
+		$tabnames = Tabs::$tabsData['tabNames']; // Copy this array's value, to reset it to this value after parsing the inner <tab>s.
+		Tabs::$tabsData['tabNames'] = []; // temporarily clear this array, so that only the <tab>s within this <tabs> tag are tracked.
+		Tabs::$tabsData['labels'] = []; // Reset after previous usage
+		Tabs::$tabsData['nested'] = true;
 		// PARSING
 		$newstr = $parser->recursiveTagParse( $input, $frame );
 		// AND RESETTING (to their original values):
-		$parser->tabsData['tabNames'] = $tabnames; // reset to the value it had before parsing the nested <tab>s. All nested <tab>s are "forgotten".
-		$parser->tabsData['nested'] = false; // reset
+		Tabs::$tabsData['tabNames'] = $tabnames; // reset to the value it had before parsing the nested <tab>s. All nested <tab>s are "forgotten".
+		Tabs::$tabsData['nested'] = false; // reset
 
 		/**
 		 * The default value for $labels creates a separate input for the default tab, which has no label attached to it.
@@ -261,7 +261,7 @@ class Tabs {
 		 */
 		$labels = "<input type=\"radio\" form=\"tabs-inputform\" id=\"tabs-input-$count-0\" name=\"tabs-$count\" class=\"tabs-input tabs-input-0\" checked/>";
 		$indices = []; // this is to most accurately count the amount of <tab>s in this <tabs> tag.
-		foreach ( $parser->tabsData['labels'] as $i => $n ) {
+		foreach ( Tabs::$tabsData['labels'] as $i => $n ) {
 			$indices[] = $i;
 			$labels .= $this->makeLabel( $i, $n, $count );
 		}
@@ -270,7 +270,7 @@ class Tabs {
 			$labels .= $this->makeLabel( 1, 'Tab 1', $count );
 		}
 
-		$toStyle = &$parser->tabsData['toStyle'];
+		$toStyle = &Tabs::$tabsData['toStyle'];
 		if ( $toStyle < count( $indices ) ) { // only redefine the styles to be added to the head if we actually need to generate extra styles.
 			$toStyle = count( $indices );
 			$this->insertCSSJS( $parser ); // reload dynamic CSS with new amount
@@ -387,8 +387,8 @@ class Tabs {
 	public function insertCSSJS( &$parser ) {
 		$parserOut = $parser->getOutput();
 		$parserOut->addHeadItem( $this->createDynamicCss( $parser ), 'TabsStyles' );
-		if ( !$parser->tabsData['addedStatics'] ) {
-			$parser->tabsData['addedStatics'] = true;
+		if ( !Tabs::$tabsData['addedStatics'] ) {
+			Tabs::$tabsData['addedStatics'] = true;
 			$parserOut->addModules( [ 'ext.tabs' ] );
 			// this form is here to use for the form="" attribute in the inputs, for semantically correct usage of the <input> tag outside a <form> tag.
 			return '<form id="tabs-inputform" class="tabs tabs-inputform" action="#"></form>';
@@ -405,7 +405,7 @@ class Tabs {
 		$class = [ '', '.tabs-inline', '.tabs-block' ];
 		$style = [ 'inline-block', 'inline', 'block' ];
 		foreach ( $class as $n => $c ) {
-			for ( $i = 1;$i <= $parser->tabsData['toStyle'];$i++ ) {
+			for ( $i = 1;$i <= Tabs::$tabsData['toStyle'];$i++ ) {
 				$css .= ".tabs-input-$i:checked ~ .tabs-container $c.tabs-content-$i,\n";
 			}
 			$css .= ".tabs-input-0:checked ~ .tabs-container $c.tabs-content-1 {display:" . $style[$n] . ";}\n";
